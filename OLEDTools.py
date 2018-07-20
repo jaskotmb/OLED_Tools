@@ -57,7 +57,7 @@ def LinSweepSMU(Vbegin, Vend, samplePoints, stepT, maxCurr):
     rm = visa.ResourceManager()
     B2901A_address = rm.list_resources()[0]
     smu = rm.open_resource(B2901A_address)
-    totalTime = stepT * samplePoints
+    totalTime = (stepT+.005)*samplePoints
     smu.write('*RST')
     smu.write(':SOUR:FUNC:MODE VOLT')
     smu.write(':SOUR:VOLT:MODE SWE')
@@ -77,7 +77,7 @@ def LinSweepSMU(Vbegin, Vend, samplePoints, stepT, maxCurr):
     smu.write(':TRIG:COUN {}'.format(samplePoints))
     smu.write(':OUTP ON')
     smu.write(':INIT (@1)')
-    time.sleep(totalTime + 10)
+    time.sleep(totalTime)
     measCurr = smu.query(':FETC:ARR:CURR? (@1)').split(',')
     sourceVolts = smu.query(':FETC:ARR:VOLT? (@1)').split(',')
     VIpairs = list(zip(sourceVolts,measCurr))
