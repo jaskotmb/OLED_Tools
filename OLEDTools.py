@@ -7,6 +7,51 @@ import csv
 import os
 import visa
 
+def IVBSweep(Vbegin, Vend, step, stepT, maxCurr, newSweep):
+    rm = visa.ResourceManager()
+    B2901A_address = rm.list_resources()[0]
+    MM_34460_address = rm.list_resources()[1]
+    smu = rm.open_resource(B2901A_address)
+    mm = rm.open_resource(MM_34460_address)
+    if newSweep == 1:
+        smu.write('*RST')
+        mm.write('*RST')
+        smu.write(':SOUR:FUNC:MODE VOLT')
+        smu.write(':SOUR:VOLT 0')
+        smu.write(':SOUR:VOLT:RANG 20')
+        smu.write(':SOUR:VOLT {}'.format(Vbegin))
+        smu.write(':SENS:FUNC ""CURR""')
+        smu.write(':SENS:CURR:RANG:AUTO ON')
+        smu.write(':SENS:CURR:PROT {}'.format(maxCurr))
+        smu.write(':FORM:DATA ASC')
+        smu.write(':OUTP ON')
+    countList = []
+    countTemp = Vbegin
+    if (Vend>Vbegin):
+        for i in range(int(1+(Vend-Vbegin)/step)):
+            countList.append(countTemp)
+            countTemp = countTemp + step
+    if (Vbegin>Vend):
+        countTemp = Vend
+        for i in range(int(1+(Vbegin-Vend)/step)):
+            countList.append(countTemp)
+            countTemp = countTemp + step
+        countList = list(reversed(countList))
+    voltList = []
+    currList = []
+    brightList = []
+    for i in countList:
+        smu.write(':SOUR:VOLT {}'.format(i))
+        time.sleep(stepT)
+        currMeasurement = smu.query(':MEAS:CURR? (@1)').split('\n')[0]
+        voltMeasurement = smu.query(':MEAS:VOLT? (@1)').split('\n')[0]
+        brightMeasurement = mm.query(':MEAS:CURR:DC?').split('\n')[0]
+        voltList.append(voltMeasurement)
+        currList.append(currMeasurement)
+        brightList.append(brightMeasurement)
+    VIBList = list(zip(voltList,currList,brightList))
+    return VIBList
+
 # Executes a linear IV sweep and returns IV output
 def LinSweepSMU(Vbegin, Vend, samplePoints, stepT, maxCurr):
     rm = visa.ResourceManager()
@@ -73,3 +118,12 @@ def writeMobility(fn,data):
             writer.writerow(row1)
             for row in data:
                 writer.writerow(row)
+
+# Outputs IV-Brightness data to a .csv
+def writeIVB(fn,data):
+    with open(fn, 'w',newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        row1 = ["Voltage (V)","Current (A)","Brightness Current (A)"]
+        writer.writerow(row1)
+        for row in data:
+            writer.writerow(row)
