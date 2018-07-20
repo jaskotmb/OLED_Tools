@@ -5,34 +5,47 @@
 import time
 import csv
 import os
+import visa
 
 # Executes a linear IV sweep and returns IV output
-def LinSweep(SMUName, Vbegin, Vend, samplePoints, stepT, maxCurr):
+def LinSweepSMU(Vbegin, Vend, samplePoints, stepT, maxCurr):
+    rm = visa.ResourceManager()
+    B2901A_address = rm.list_resources()[0]
+    smu = rm.open_resource(B2901A_address)
     totalTime = stepT * samplePoints
-    SMU.write('*RST')
-    SMU.write(':SOUR:FUNC:MODE VOLT')
-    SMU.write(':SOUR:VOLT:MODE SWE')
-    SMU.write(':SOUR:VOLT:RANG 20')
-    SMU.write(':SOUR:VOLT:STAR {}'.format(Vbegin))
-    SMU.write(':SOUR:VOLT:STOP {}'.format(Vend))
-    SMU.write(':SOUR:VOLT:POIN {}'.format(samplePoints))
-    SMU.write(':SOUR:SWE:DIR UP')
-    SMU.write(':SOUR:SWE:SPAC LIN')
-    SMU.write(':SOUR:SWE:STA SING')
-    SMU.write(':SENS:FUNC ""CURR""')
-    SMU.write(':SENS:CURR:RANG:AUTO ON')
-    SMU.write(':SENS:CURR:APER {}'.format(stepT))
-    SMU.write(':SENS:CURR:PROT {}'.format(maxCurr))
-    SMU.write(':FORM:DATA ASC')
-    SMU.write(':TRIG:SOUR AINT')
-    SMU.write(':TRIG:COUN {}'.format(samplePoints))
-    SMU.write(':OUTP ON')
-    SMU.write(':INIT (@1)')
+    smu.write('*RST')
+    smu.write(':SOUR:FUNC:MODE VOLT')
+    smu.write(':SOUR:VOLT:MODE SWE')
+    smu.write(':SOUR:VOLT:RANG 20')
+    smu.write(':SOUR:VOLT:STAR {}'.format(Vbegin))
+    smu.write(':SOUR:VOLT:STOP {}'.format(Vend))
+    smu.write(':SOUR:VOLT:POIN {}'.format(samplePoints))
+    smu.write(':SOUR:SWE:DIR UP')
+    smu.write(':SOUR:SWE:SPAC LIN')
+    smu.write(':SOUR:SWE:STA SING')
+    smu.write(':SENS:FUNC ""CURR""')
+    smu.write(':SENS:CURR:RANG:AUTO ON')
+    smu.write(':SENS:CURR:APER {}'.format(stepT))
+    smu.write(':SENS:CURR:PROT {}'.format(maxCurr))
+    smu.write(':FORM:DATA ASC')
+    smu.write(':TRIG:SOUR AINT')
+    smu.write(':TRIG:COUN {}'.format(samplePoints))
+    smu.write(':OUTP ON')
+    smu.write(':INIT (@1)')
     time.sleep(totalTime + 10)
-    measCurr = SMU.query(':FETC:ARR:CURR? (@1)').split(',')
-    sourceVolts = SMU.query(':FETC:ARR:VOLT? (@1)').split(',')
+    measCurr = smu.query(':FETC:ARR:CURR? (@1)').split(',')
+    sourceVolts = smu.query(':FETC:ARR:VOLT? (@1)').split(',')
     VIpairs = list(zip(sourceVolts,measCurr))
     return VIpairs
+
+# Closes connection to SMU:
+def SMUclose():
+    rm = visa.ResourceManager()
+    B2901A_address = rm.list_resources()[0]
+    smu = rm.open_resource(B2901A_address)
+    smu.write(':OUTP OFF')
+    smu.close()
+
 
 # Returns a string of the current time: "YYYYMMDD-HH-mm-ss"
 def stringTime():
