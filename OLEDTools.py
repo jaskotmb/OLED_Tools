@@ -7,12 +7,36 @@ import csv
 import os
 import visa
 
+def currDecay(sourceCurrent, nplcTime):
+    rm = visa.ResourceManager()
+    B2901A_address = rm.list_resources()[0]
+    MM_34460_address = rm.list_resources()[1]
+    smu = rm.open_resource(B2901A_address)
+    mm = rm.open_resource(MM_34460_address)
+    smu.write('*RST')
+    mm.write('*RST')
+    smu.write(':SOUR:FUNC:MODE CURR:DC')
+    smu.write(':SOUR:CURR {}'.format(sourceCurrent))
+    smu.write(':SENS:FUNC ""VOLT""')
+    smu.write(':SENS:VOLT:RANG:AUTO ON')
+    smu.write(':FORM:DATA ASC')
+    smu.write(':OUTP ON')
+    mm.write(':CONF:CURR:DC')
+    mm.write(':CURR:DC:NPLC {}'.format(nplcTime))
+    mm.timeout = 300e3
+    mm.write(':SAMP:COUN 200')
+    brightList = mm.query(':READ?').split('\n')[0]
+    brightList = list(zip(brightList,brightList,brightList))
+    return brightList
+
 def IVBSweep(Vbegin, Vend, step, stepT, maxCurr, newSweep):
     rm = visa.ResourceManager()
     B2901A_address = rm.list_resources()[0]
     MM_34460_address = rm.list_resources()[1]
     smu = rm.open_resource(B2901A_address)
     mm = rm.open_resource(MM_34460_address)
+    aperture = stepT
+    nplcTime = 10
     if newSweep == 1:
         smu.write('*RST')
         mm.write('*RST')
@@ -23,8 +47,11 @@ def IVBSweep(Vbegin, Vend, step, stepT, maxCurr, newSweep):
         smu.write(':SENS:FUNC ""CURR""')
         smu.write(':SENS:CURR:RANG:AUTO ON')
         smu.write(':SENS:CURR:PROT {}'.format(maxCurr))
+        smu.write(':SENS:CURR:APER {}'.format(aperture))
         smu.write(':FORM:DATA ASC')
         smu.write(':OUTP ON')
+        mm.write(':CONF:CURR:DC')
+        mm.write(':CURR:DC:NPLC {}'.format(nplcTime))
     countList = []
     countTemp = Vbegin
     if (Vend>Vbegin):
@@ -42,10 +69,10 @@ def IVBSweep(Vbegin, Vend, step, stepT, maxCurr, newSweep):
     brightList = []
     for i in countList:
         smu.write(':SOUR:VOLT {}'.format(i))
-        time.sleep(stepT)
         currMeasurement = smu.query(':MEAS:CURR? (@1)').split('\n')[0]
         voltMeasurement = smu.query(':MEAS:VOLT? (@1)').split('\n')[0]
-        brightMeasurement = mm.query(':MEAS:CURR:DC?').split('\n')[0]
+        #brightMeasurement = mm.query(':MEAS:CURR:DC?').split('\n')[0]
+        brightMeasurement = mm.query(':READ?').split('\n')[0]
         voltList.append(voltMeasurement)
         currList.append(currMeasurement)
         brightList.append(brightMeasurement)
