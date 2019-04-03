@@ -4,28 +4,26 @@ import serial
 import visa
 import datetime
 
-# mux = [1,2,3,4,5,6,7,8]
-# ser = serial.Serial('COM3', 9600, timeout=0)
-# for i in mux:
-#     time.sleep(.5)
-#     ser.write(b'+0')
-#     time.sleep(2)
-#     ser.write(str.encode('-' + str(i)))
-#     print(i)
-#     time.sleep(15)
-#
-#     OLEDTools.currDecay(-5e-3,5)
-# ser = serial.Serial('COM3',9600,timeout=0)
-# time.sleep(0.5)
-# ser.write(b'+0')
-# time.sleep(2)
-# ser.write(b'-1')
-# time.sleep(2)
-#
-# VIBList = OLEDTools.IVBSweep(5,0,51,0.02,1)
-# OLEDTools.writeIVB("foo3.csv",VIBList)
-#ser.write(b'+1')
-
-xOut = [x*1E-2 for x in range(0,150)]
-
-print(xOut)
+aperture = .01
+maxCurr = .001
+step = 0.1
+rm = visa.ResourceManager()
+B2901A = rm.list_resources()[0]
+smu = rm.open_resource(B2901A)
+smu.write("*RST")
+print("SMU: {}".format(smu.query("*IDN?")))
+time.sleep(3)
+smu.write(':SENS:FUNC ""CURR""')
+smu.write(':SENS:CURR:RANG:AUTO ON')
+smu.write(':SENS:CURR:APER {}'.format(aperture))
+smu.write(':SENS:CURR:PROT {}'.format(maxCurr))
+smu.write(':FORM:DATA ASC')
+smu.write(':TRIG:SOUR AINT')
+smu.write(':TRIG:COUN {}'.format(step))
+smu.write(":TRIG:DEL .01")
+smu.write(':OUTP ON')
+smu.write(":SOUR:TOUT:STAT ON")
+smu.write(":SOUR:TOUT:SIGN EXT3")
+smu.write(":SOUR:DIG:EXT3:FUNC DIO")
+smu.write(":SOUR:DIG:EXT3:TOUT:EDGE:POS BEF")
+smu.write(':INIT (@1)')

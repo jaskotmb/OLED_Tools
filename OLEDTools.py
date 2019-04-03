@@ -8,6 +8,43 @@ import os
 import visa
 import datetime
 
+def getSpectrum(fileName):
+    # given a filename for an OO spectrum file, returns [(wavelength, intensity),...] tuple list
+
+    file = open(fileName,"r")
+    header= []
+    begchar = ''
+    while begchar != '>':
+        temp = file.readline()
+        header.append(temp)
+        begchar = temp[0]
+
+    fname = header[0].split('from ')[1].split(' ')[0]
+    print("Filename: {}".format(fname))
+    date = header[2].split(': ')[1].split('\n')[0]
+    print("Date: {}".format(date))
+    inttime = float(header[6].split(': ')[1].split('\n')[0])
+    print("Integration Time: {} seconds".format(inttime))
+    scansavg = header[7].split(': ')[1].split('\n')[0]
+    print("Scans Averaged: {}".format(scansavg))
+
+    wvl = []
+    intens = []
+    line = "Test"
+    for line in file:
+        lsplit = line.split('\t')
+        wvl.append(float(lsplit[0]))
+        intens.append(float(lsplit[1].split('\n')[0]))
+
+    return wvl
+
+def iDevice():
+    rm = visa.ResourceManager()
+    B2901A = rm.list_resources()[0]
+    smu = rm.open_resource(B2901A)
+    smu.write("*RST")
+    print("SMU: {}".format(smu.query("*IDN?")))
+
 def currDecay(sourceCurrent,maxTime):
     rm = visa.ResourceManager()
     B2901A = rm.list_resources()[0]
