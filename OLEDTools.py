@@ -10,78 +10,94 @@ import datetime
 import scipy.integrate
 import matplotlib.pyplot as plt
 
-def quenchAnalyzePL(filename,plotting):
-    with open(filename,'r') as readFile:
+
+def multipleQuenchPlot(fileList, cols):
+    for i in range(len(fileList)):
+        datatemp = quenchAnalyzePL(fileList[i], 0)
+        xs = list(zip(*datatemp))[0]
+        ys = list(zip(*datatemp))[1]
+        plt.semilogx(xs, ys, linestyle="", marker="o", color=cols[i])
+    plt.xlabel('Drive Current (A)')
+    plt.ylabel('Normalized PL')
+    plt.show()
+
+
+def quenchAnalyzePL(filename, plotting):
+    with open(filename, 'r') as readFile:
         lines = readFile.read().splitlines()
 
     stringData = [x for x in lines if x != '']
     currData = [float(x.split(',')[0]) for x in stringData]
     intensData = [float(x.split(',')[1]) for x in stringData]
-    stitchedData = list(zip(currData,intensData))
+    stitchedData = list(zip(currData, intensData))
 
     indexBreaks = [0]
     currBreaks = []
-    for i in range(1,len(stitchedData)):
-        if round(stitchedData[i][0],7) != round(stitchedData[i-1][0],7):
+    for i in range(1, len(stitchedData)):
+        if round(stitchedData[i][0], 7) != round(stitchedData[i - 1][0], 7):
             indexBreaks.append(i)
-            currBreaks.append(round(stitchedData[i-1][0],7))
+            currBreaks.append(round(stitchedData[i - 1][0], 7))
 
     totalDataAvg = []
-    for k in range(len(indexBreaks)-1):
+    for k in range(len(indexBreaks) - 1):
         meanData = 0
-        for i in range(indexBreaks[k],indexBreaks[k+1]):
+        for i in range(indexBreaks[k], indexBreaks[k + 1]):
             meanData = meanData + stitchedData[i][1]
-        meanData = meanData - stitchedData[indexBreaks[k]][1] - stitchedData[indexBreaks[k+1]-1][1]
+        meanData = meanData - stitchedData[indexBreaks[k]][1] - stitchedData[indexBreaks[k + 1] - 1][1]
         # above line subtracts out first and last points in measurement series
-        avgdPts = (indexBreaks[k+1]-indexBreaks[k]-2)
-        meanData = meanData/avgdPts # divide by number of elements for mean value
+        avgdPts = (indexBreaks[k + 1] - indexBreaks[k] - 2)
+        meanData = meanData / avgdPts  # divide by number of elements for mean value
         totalDataAvg.append(meanData)
         if plotting == 2:
-            print("Pulse: {:4}, Current: {:5.2}mA, Mean Intensity: {:8.6}, Averaged Points: {:2}".format(k,currBreaks[k]*1e3,
-                                                                                                         meanData,avgdPts))
+            print("Pulse: {:4}, Current: {:5.2}mA, Mean Intensity: {:8.6}, Averaged Points: {:2}".format(k, currBreaks[
+                k] * 1e3,
+                                                                                                         meanData,
+                                                                                                         avgdPts))
 
-    totalData = list(zip(currBreaks,totalDataAvg))
+    totalData = list(zip(currBreaks, totalDataAvg))
     ratio = []
     ratioCurr = []
-    for i in range(1,len(totalData)):
-        ratio.append(totalData[i][1]/totalData[i-1][1])
+    for i in range(1, len(totalData)):
+        ratio.append(totalData[i][1] / totalData[i - 1][1])
         ratioCurr.append(totalData[i][0])
     ratioList = []
-    ratioListTemp = list(zip(ratioCurr,ratio))
+    ratioListTemp = list(zip(ratioCurr, ratio))
     for i in range(len(ratioListTemp)):
         if ratioListTemp[i][0] != 0:
             ratioList.append(ratioListTemp[i])
-    if plotting ==2:
+    if plotting == 2:
         print(ratioList)
 
     if plotting >= 1:
         xs = list(zip(*ratioList))[0]
         ys = list(zip(*ratioList))[1]
-        plt.semilogx(xs,ys,linestyle="",marker="o")
+        plt.semilogx(xs, ys, linestyle="", marker="o")
         plt.xlabel('Drive Current (A)')
         plt.ylabel('Normalized PL')
         plt.title(filename)
         plt.show()
     return ratioList
 
-def integrateSpectrum(wavelengthList,intensityList,minWvl,maxWvl):
+
+def integrateSpectrum(wavelengthList, intensityList, minWvl, maxWvl):
     relevantWvls = [x for x in wavelengthList if x > minWvl and x < maxWvl]
     for index in range(len(intensityList)):
         if relevantWvls[0] == wavelengthList[index]:
             break
-    relevantIntens = intensityList[index:index+len(relevantWvls)]
-    auc = scipy.integrate.cumtrapz(relevantIntens,relevantWvls)
+    relevantIntens = intensityList[index:index + len(relevantWvls)]
+    auc = scipy.integrate.cumtrapz(relevantIntens, relevantWvls)
     intBegin = relevantWvls[0]
-    intEnd = relevantWvls[len(relevantWvls)-1]
-    intAvg = auc[len(auc)-1]/(intEnd-intBegin)
+    intEnd = relevantWvls[len(relevantWvls) - 1]
+    intAvg = auc[len(auc) - 1] / (intEnd - intBegin)
     # print("Integration from {} to {} = {}".format(intBegin,intEnd,intSum)))
-    return [intAvg,intBegin,intEnd]
+    return [intAvg, intBegin, intEnd]
+
 
 def getSpectrum(fileName):
     # given a filename for an OO spectrum file, returns [(wavelength, intensity),...] tuple list
 
-    file = open(fileName,"r")
-    header= []
+    file = open(fileName, "r")
+    header = []
     begchar = ''
     while begchar != '>':
         temp = file.readline()
@@ -89,13 +105,13 @@ def getSpectrum(fileName):
         begchar = temp[0]
 
     fname = header[0].split('from ')[1].split(' ')[0]
-    #print("Filename: {}".format(fname))
+    # print("Filename: {}".format(fname))
     date = header[2].split(': ')[1].split('\n')[0]
-    #print("Date: {}".format(date))
+    # print("Date: {}".format(date))
     inttime = float(header[6].split(': ')[1].split('\n')[0])
-    #print("Integration Time: {} seconds".format(inttime))
+    # print("Integration Time: {} seconds".format(inttime))
     scansavg = header[7].split(': ')[1].split('\n')[0]
-    #print("Scans Averaged: {}".format(scansavg))
+    # print("Scans Averaged: {}".format(scansavg))
 
     wvl = []
     intens = []
@@ -105,7 +121,8 @@ def getSpectrum(fileName):
         wvl.append(float(lsplit[0]))
         intens.append(float(lsplit[1].split('\n')[0]))
 
-    return list(zip(wvl,intens))
+    return list(zip(wvl, intens))
+
 
 def iDevice():
     rm = visa.ResourceManager()
@@ -114,7 +131,8 @@ def iDevice():
     smu.write("*RST")
     print("SMU: {}".format(smu.query("*IDN?")))
 
-def currDecay(sourceCurrent,maxTime):
+
+def currDecay(sourceCurrent, maxTime):
     rm = visa.ResourceManager()
     B2901A = rm.list_resources()[0]
     K34460A = rm.list_resources()[1]
@@ -144,7 +162,7 @@ def currDecay(sourceCurrent,maxTime):
     twait = 0
     ret = ""
 
-    while (tRun.seconds<maxTime):
+    while (tRun.seconds < maxTime):
         voltList.append(smu.query(":MEAS:VOLT?").split('\n')[0])
         currList.append(smu.query(":MEAS:CURR?").split('\n')[0])
         brightTemp = mm.query(":MEAS:CURR?").split('\n')[0]
@@ -154,23 +172,24 @@ def currDecay(sourceCurrent,maxTime):
             ret = "fail"
             break
         tRun = datetime.datetime.now() - tbegin
-        timeList.append(tRun.seconds+(1E-6)*tRun.microseconds)
+        timeList.append(tRun.seconds + (1E-6) * tRun.microseconds)
         time.sleep(twait)
     smu.write(":OUTP OFF")
-    outList = list(zip(timeList,voltList,currList,brightList))
+    outList = list(zip(timeList, voltList, currList, brightList))
     smu.write(":OUTP OFF")
     if ret != "fail":
         return outList
     if ret == "fail":
         return "fail"
 
-def biasVoltsTime(totalTime,bias):
+
+def biasVoltsTime(totalTime, bias):
     rm = visa.ResourceManager()
     B2901A_address = rm.list_resources()[0]
     MM_34460_address = rm.list_resources()[1]
     smu = rm.open_resource(B2901A_address)
     smu.timeout = 5000000
-    print("Reverse Biasing at {}V for {}sec".format(bias,totalTime))
+    print("Reverse Biasing at {}V for {}sec".format(bias, totalTime))
     smu.write("*RST")
     print("SMU: {}".format(smu.query("*IDN?")))
     tbegin = datetime.datetime.now()
@@ -184,20 +203,21 @@ def biasVoltsTime(totalTime,bias):
     tRun = datetime.datetime.now() - tbegin
     twait = .5
     smu.write(':INIT')
-    while (tRun.seconds<totalTime):
+    while (tRun.seconds < totalTime):
         smu.query(":MEAS:CURR?")
         tRun = datetime.datetime.now() - tbegin
         time.sleep(twait)
     smu.write(':OUTP OFF')
 
+
 def findTurnOnVoltage(Vbegin, Vend, stepVolts, maxCurr, brThreshold):
-    #Does Linear sweep until V_TurnOn, then returns linear data with V_TurnOn as last data point
+    # Does Linear sweep until V_TurnOn, then returns linear data with V_TurnOn as last data point
     rm = visa.ResourceManager()
     B2901A_address = rm.list_resources()[0]
     MM_34460_address = rm.list_resources()[1]
     smu = rm.open_resource(B2901A_address)
     mm = rm.open_resource(MM_34460_address)
-    step = abs(round((Vend-Vbegin) / stepVolts)) + 1
+    step = abs(round((Vend - Vbegin) / stepVolts)) + 1
     print("step: {}".format(step))
     print("StepVolts: {}".format(stepVolts))
     mm.timeout = 5000000
@@ -241,8 +261,8 @@ def findTurnOnVoltage(Vbegin, Vend, stepVolts, maxCurr, brThreshold):
     sourceVolts = smu.query(':FETC:ARR:VOLT? (@1)').split(',')
 
     indexThr = False
-    if [x for x in brightCurr if float(x)>brThreshold]:
-        indexThr = brightCurr.index([x for x in brightCurr if float(x)>brThreshold][0])
+    if [x for x in brightCurr if float(x) > brThreshold]:
+        indexThr = brightCurr.index([x for x in brightCurr if float(x) > brThreshold][0])
         print("indexThr = {}".format(indexThr))
         print("brightCurr at this index = {}".format(brightCurr[indexThr]))
         print("sourceVolts at this index = {}".format(sourceVolts[indexThr]))
@@ -250,9 +270,10 @@ def findTurnOnVoltage(Vbegin, Vend, stepVolts, maxCurr, brThreshold):
         print("Turn-on Voltage not in range!")
 
     smu.write(':OUTP OFF')
-    VIBList = list(zip(sourceVolts,measCurr,brightCurr))
-    if [x for x in brightCurr if float(x)>brThreshold]:
+    VIBList = list(zip(sourceVolts, measCurr, brightCurr))
+    if [x for x in brightCurr if float(x) > brThreshold]:
         return sourceVolts[indexThr]
+
 
 def IVBSweep(step, maxCurr, voltList):
     rm = visa.ResourceManager()
@@ -311,8 +332,8 @@ def IVBSweep(step, maxCurr, voltList):
         print(len(brightCurr))
         measCurr = smu.query(':FETC:ARR:CURR? (@1)').split(',')
         sourceVolts = smu.query(':FETC:ARR:VOLT? (@1)').split(',')
-        #sourceVolts = [item for item in sourceVolts for i in range(3)]
-        #measCurr = [item for item in measCurr for i in range(3)]
+        # sourceVolts = [item for item in sourceVolts for i in range(3)]
+        # measCurr = [item for item in measCurr for i in range(3)]
         print(measCurr)
         print(len(measCurr))
         print(sourceVolts)
@@ -321,8 +342,9 @@ def IVBSweep(step, maxCurr, voltList):
         print("Foo4")
 
         smu.write(':OUTP OFF')
-        VIBList = list(zip(sourceVolts,measCurr,brightCurr))
+        VIBList = list(zip(sourceVolts, measCurr, brightCurr))
         return VIBList
+
 
 def IVBSweepCurr(step, maxVolts, currList):
     rm = visa.ResourceManager()
@@ -374,23 +396,24 @@ def IVBSweepCurr(step, maxVolts, currList):
         print(len(brightCurr))
         measCurr = smu.query(':FETC:ARR:CURR? (@1)').split(',')
         sourceVolts = smu.query(':FETC:ARR:VOLT? (@1)').split(',')
-        #sourceVolts = [item for item in sourceVolts for i in range(3)]
-        #measCurr = [item for item in measCurr for i in range(3)]
+        # sourceVolts = [item for item in sourceVolts for i in range(3)]
+        # measCurr = [item for item in measCurr for i in range(3)]
         print(measCurr)
         print(len(measCurr))
         print(sourceVolts)
         print(len(sourceVolts))
 
         smu.write(':OUTP OFF')
-        VIBList = list(zip(sourceVolts,measCurr,brightCurr))
+        VIBList = list(zip(sourceVolts, measCurr, brightCurr))
         return VIBList
+
 
 # Executes a linear IV sweep and returns IV output
 def LinSweepSMU(Vbegin, Vend, samplePoints, stepT, maxCurr):
     rm = visa.ResourceManager()
     B2901A_address = rm.list_resources()[0]
     smu = rm.open_resource(B2901A_address)
-    totalTime = (stepT+.005)*samplePoints
+    totalTime = (stepT + .005) * samplePoints
     smu.write('*RST')
     print("SMU: {}".format(smu.query("*IDN?")))
     smu.write(':SOUR:FUNC:MODE VOLT')
@@ -414,8 +437,9 @@ def LinSweepSMU(Vbegin, Vend, samplePoints, stepT, maxCurr):
     time.sleep(totalTime)
     measCurr = smu.query(':FETC:ARR:CURR? (@1)').split(',')
     sourceVolts = smu.query(':FETC:ARR:VOLT? (@1)').split(',')
-    VIpairs = list(zip(sourceVolts,measCurr))
+    VIpairs = list(zip(sourceVolts, measCurr))
     return VIpairs
+
 
 # Closes connection to SMU:
 def SMUclose():
@@ -428,6 +452,7 @@ def SMUclose():
     smu.close()
     mm.close()
 
+
 # Returns a string of the current time: "YYYYMMDD-HH-mm-ss"
 def stringTime():
     startTime = time.localtime()
@@ -435,40 +460,44 @@ def stringTime():
         startTime.tm_hour).zfill(2) + '-' + str(startTime.tm_min).zfill(2) + '-' + str(startTime.tm_sec).zfill(2)
     return s
 
+
 # Creates a directory (if none exists) with today's date: "YYYYMMDD"
 # then moves cwd to that directory
 def makeTodayDir():
     todayName = stringTime()[0:8]
     if not os.path.exists(todayName):
         os.mkdir(todayName)
-        print("Created Directory for today: {}\\{}".format(os.getcwd(),todayName))
+        print("Created Directory for today: {}\\{}".format(os.getcwd(), todayName))
     os.chdir(todayName)
     print("Changed Directory to: {}".format(os.getcwd()))
     return
 
-# Outputs IV data to a .csv
-def writeMobility(fn,data):
-        with open(fn, 'w',newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            row1 = ["Voltage (V)","Current (A)"]
-            writer.writerow(row1)
-            for row in data:
-                writer.writerow(row)
 
-# Outputs IV-Brightness data to a .csv
-def writeIVB(fn,data):
-    with open(fn, 'w',newline='') as csvfile:
+# Outputs IV data to a .csv
+def writeMobility(fn, data):
+    with open(fn, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
-        row1 = ["Voltage (V)","Current (A)","Brightness Current (A)"]
+        row1 = ["Voltage (V)", "Current (A)"]
         writer.writerow(row1)
         for row in data:
             writer.writerow(row)
 
-# Outputs IV-Brightness Decay data to a .csv
-def writeIVBDecay(fn,data):
-    with open(fn, 'w',newline='') as csvfile:
+
+# Outputs IV-Brightness data to a .csv
+def writeIVB(fn, data):
+    with open(fn, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
-        row1 = ["Time (sec)","Voltage (V)","Current (A)","Brightness Current (A)"]
+        row1 = ["Voltage (V)", "Current (A)", "Brightness Current (A)"]
+        writer.writerow(row1)
+        for row in data:
+            writer.writerow(row)
+
+
+# Outputs IV-Brightness Decay data to a .csv
+def writeIVBDecay(fn, data):
+    with open(fn, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        row1 = ["Time (sec)", "Voltage (V)", "Current (A)", "Brightness Current (A)"]
         writer.writerow(row1)
         for row in data:
             writer.writerow(row)
