@@ -8,6 +8,61 @@ import os
 import visa
 import datetime
 import scipy.integrate
+import matplotlib.pyplot as plt
+
+def quenchAnalyzePL(filename,plotting):
+    with open(filename,'r') as readFile:
+        lines = readFile.read().splitlines()
+
+    stringData = [x for x in lines if x != '']
+    currData = [float(x.split(',')[0]) for x in stringData]
+    intensData = [float(x.split(',')[1]) for x in stringData]
+    stitchedData = list(zip(currData,intensData))
+
+    indexBreaks = [0]
+    currBreaks = []
+    for i in range(1,len(stitchedData)):
+        if round(stitchedData[i][0],7) != round(stitchedData[i-1][0],7):
+            indexBreaks.append(i)
+            currBreaks.append(round(stitchedData[i-1][0],7))
+
+    totalDataAvg = []
+    for k in range(len(indexBreaks)-1):
+        meanData = 0
+        for i in range(indexBreaks[k],indexBreaks[k+1]):
+            meanData = meanData + stitchedData[i][1]
+        meanData = meanData - stitchedData[indexBreaks[k]][1] - stitchedData[indexBreaks[k+1]-1][1]
+        # above line subtracts out first and last points in measurement series
+        avgdPts = (indexBreaks[k+1]-indexBreaks[k]-2)
+        meanData = meanData/avgdPts # divide by number of elements for mean value
+        totalDataAvg.append(meanData)
+        if plotting == 2:
+            print("Pulse: {:4}, Current: {:5.2}mA, Mean Intensity: {:8.6}, Averaged Points: {:2}".format(k,currBreaks[k]*1e3,
+                                                                                                         meanData,avgdPts))
+
+    totalData = list(zip(currBreaks,totalDataAvg))
+    ratio = []
+    ratioCurr = []
+    for i in range(1,len(totalData)):
+        ratio.append(totalData[i][1]/totalData[i-1][1])
+        ratioCurr.append(totalData[i][0])
+    ratioList = []
+    ratioListTemp = list(zip(ratioCurr,ratio))
+    for i in range(len(ratioListTemp)):
+        if ratioListTemp[i][0] != 0:
+            ratioList.append(ratioListTemp[i])
+    if plotting ==2:
+        print(ratioList)
+
+    if plotting >= 1:
+        xs = list(zip(*ratioList))[0]
+        ys = list(zip(*ratioList))[1]
+        plt.semilogx(xs,ys,linestyle="",marker="o")
+        plt.xlabel('Drive Current (A)')
+        plt.ylabel('Normalized PL')
+        plt.title(filename)
+        plt.show()
+    return ratioList
 
 def integrateSpectrum(wavelengthList,intensityList,minWvl,maxWvl):
     relevantWvls = [x for x in wavelengthList if x > minWvl and x < maxWvl]
