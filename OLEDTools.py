@@ -11,71 +11,111 @@ import scipy.integrate
 import matplotlib.pyplot as plt
 
 
-def multipleQuenchPlot(fileList, cols):
+def multipleQuenchPlot(JorV, fileList, cols, JorVsource):
     for i in range(len(fileList)):
-        datatemp = quenchAnalyzePL(fileList[i], 0)
-        xs = list(zip(*datatemp))[0]
-        ys = list(zip(*datatemp))[1]
-        plt.semilogx(xs, ys, linestyle="", marker="o", color=cols[i])
-    plt.xlabel('Drive Current (A)')
-    plt.ylabel('Normalized PL')
+        datatemp = quenchAnalyzePLwV('V', fileList[i], 0, 0, JorVsource)
+        if JorV == "J":
+            xs = list(zip(*datatemp))[0]
+        if JorV == "V":
+            xs = list(zip(*datatemp))[1]
+        ys = list(zip(*datatemp))[2]
+        if JorV == "J":
+            plt.semilogx(xs, ys, linestyle="", marker="o", color=cols[i])
+            plt.xlabel('Drive Current (A)')
+            plt.xlim(.9e-6,3e-3)
+        if JorV == "V":
+            plt.plot(xs, ys, linestyle="", marker="o", color=cols[i])
+            plt.xlabel('Voltage (V)')
+            plt.xlim(0,16)
+        plt.ylim(0.75,1.01)
+        plt.ylabel('Normalized PL')
     plt.show()
 
-
-def quenchAnalyzePL(filename, plotting):
+def quenchAnalyzePLwV(JorV, filename, plotting, outPutFile, JorVsource):
     with open(filename, 'r') as readFile:
         lines = readFile.read().splitlines()
 
     stringData = [x for x in lines if x != '']
-    currData = [float(x.split(',')[0]) for x in stringData]
-    intensData = [float(x.split(',')[1]) for x in stringData]
-    stitchedData = list(zip(currData, intensData))
+    stringData = stringData[:-5]
+    currData = [abs(float(x.split(',')[0])) for x in stringData]
+    voltData = [float(x.split(',')[1]) for x in stringData]
+    intensData = [float(x.split(',')[2]) for x in stringData]
+    stitchedData = list(zip(currData, voltData, intensData))
 
     indexBreaks = [0]
     currBreaks = []
+    voltBreaks = []
     for i in range(1, len(stitchedData)):
-        if round(stitchedData[i][0], 7) != round(stitchedData[i - 1][0], 7):
+        if(JorVsource == "V"):
+            indexTest = 1
+        if(JorVsource == "J"):
+            indexTest = 0
+        if round(stitchedData[i][indexTest], 7) != round(stitchedData[i - 1][indexTest], 7):
             indexBreaks.append(i)
             currBreaks.append(round(stitchedData[i - 1][0], 7))
+            voltBreaks.append(round(stitchedData[i - 1][1], 7))
+    print(indexBreaks)
 
     totalDataAvg = []
     for k in range(len(indexBreaks) - 1):
         meanData = 0
         for i in range(indexBreaks[k], indexBreaks[k + 1]):
-            meanData = meanData + stitchedData[i][1]
-        meanData = meanData - stitchedData[indexBreaks[k]][1] - stitchedData[indexBreaks[k + 1] - 1][1]
+            meanData = meanData + stitchedData[i][2]
+        meanData = meanData - stitchedData[indexBreaks[k]][2] - stitchedData[indexBreaks[k + 1] - 1][2]
         # above line subtracts out first and last points in measurement series
         avgdPts = (indexBreaks[k + 1] - indexBreaks[k] - 2)
+        print(avgdPts)
         meanData = meanData / avgdPts  # divide by number of elements for mean value
         totalDataAvg.append(meanData)
         if plotting == 2:
             print("Pulse: {:4}, Current: {:5.2}mA, Mean Intensity: {:8.6}, Averaged Points: {:2}".format(k, currBreaks[
-                k] * 1e3,
-                                                                                                         meanData,
-                                                                                                         avgdPts))
+                k] * 1e3,meanData,avgdPts))
 
-    totalData = list(zip(currBreaks, totalDataAvg))
+    totalData = list(zip(currBreaks, voltBreaks, totalDataAvg))
     ratio = []
     ratioCurr = []
+    ratioVolt = []
     for i in range(1, len(totalData)):
-        ratio.append(totalData[i][1] / totalData[i - 1][1])
+        ratio.append(totalData[i][2] / totalData[i - 1][2])
         ratioCurr.append(totalData[i][0])
+        ratioVolt.append(totalData[i][1])
     ratioList = []
-    ratioListTemp = list(zip(ratioCurr, ratio))
+    ratioListTemp = list(zip(ratioCurr, ratioVolt, ratio))
     for i in range(len(ratioListTemp)):
         if ratioListTemp[i][0] != 0:
             ratioList.append(ratioListTemp[i])
     if plotting == 2:
         print(ratioList)
 
-    if plotting >= 1:
+    if (plotting == 1 or plotting == 2) and (JorV == 'J'):
         xs = list(zip(*ratioList))[0]
-        ys = list(zip(*ratioList))[1]
+        ys = list(zip(*ratioList))[2]
         plt.semilogx(xs, ys, linestyle="", marker="o")
         plt.xlabel('Drive Current (A)')
         plt.ylabel('Normalized PL')
         plt.title(filename)
         plt.show()
+
+    if (plotting == 1 or plotting == 2) and (JorV == 'V'):
+        xs = list(zip(*ratioList))[1]
+        ys = list(zip(*ratioList))[2]
+        plt.plot(xs, ys, linestyle="", marker="o")
+        plt.xlabel('Voltage (V)')
+        plt.ylabel('Normalized PL')
+        plt.title(filename)
+        plt.show()
+
+    if outPutFile == 1:
+        xs = list(zip(*ratioList))[0]
+        ys = list(zip(*ratioList))[1]
+        zs = list(zip(*ratioList))[2]
+        data = list(zip(xs,ys))
+        with open(filename.strip(".csv")+"_Ratio.csv", 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            row1 = ["Drive Current (A)", "Voltage (V)", "PL Ratio"]
+            writer.writerow(row1)
+            for row in data:
+                writer.writerow(row)
     return ratioList
 
 
