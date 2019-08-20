@@ -22,11 +22,11 @@ def multipleQuenchPlot(JorV, fileList, cols, JorVsource):
         if JorV == "J":
             plt.semilogx(xs, ys, linestyle="", marker="o", color=cols[i])
             plt.xlabel('Drive Current (A)')
-            plt.xlim(.9e-6,3e-3)
+            plt.xlim(.9e-6,2e-2)
         if JorV == "V":
             plt.plot(xs, ys, linestyle="", marker="o", color=cols[i])
             plt.xlabel('Voltage (V)')
-            plt.xlim(0,16)
+            plt.xlim(0,23)
         plt.ylim(0.75,1.01)
         plt.ylabel('Normalized PL')
     plt.show()
@@ -50,23 +50,44 @@ def quenchAnalyzePLwV(JorV, filename, plotting, outPutFile, JorVsource):
             indexTest = 1
         if(JorVsource == "J"):
             indexTest = 0
-        if round(stitchedData[i][indexTest], 7) != round(stitchedData[i - 1][indexTest], 7):
+        if round(stitchedData[i][indexTest], 2) != round(stitchedData[i - 1][indexTest], 2):
             indexBreaks.append(i)
             currBreaks.append(round(stitchedData[i - 1][0], 7))
             voltBreaks.append(round(stitchedData[i - 1][1], 7))
-    print(indexBreaks)
+    #print(indexBreaks)
 
     totalDataAvg = []
+    onOrOff = 0
+    xnumFront = 5
+    xnumEnd = 5
     for k in range(len(indexBreaks) - 1):
         meanData = 0
-        for i in range(indexBreaks[k], indexBreaks[k + 1]):
-            meanData = meanData + stitchedData[i][2]
-        meanData = meanData - stitchedData[indexBreaks[k]][2] - stitchedData[indexBreaks[k + 1] - 1][2]
-        # above line subtracts out first and last points in measurement series
-        avgdPts = (indexBreaks[k + 1] - indexBreaks[k] - 2)
-        print(avgdPts)
-        meanData = meanData / avgdPts  # divide by number of elements for mean value
-        totalDataAvg.append(meanData)
+        if onOrOff%2 == 1: #this means current is on
+            for i in range(indexBreaks[k], indexBreaks[k + 1]):
+                meanData = meanData + stitchedData[i][2]
+            meanData = meanData - stitchedData[indexBreaks[k]][2] - stitchedData[indexBreaks[k + 1] - 1][2]
+            # above line subtracts out first and last points in measurement series
+            avgdPts = (indexBreaks[k + 1] - indexBreaks[k] - 2)
+            meanData = meanData / avgdPts  # divide by number of elements for mean value
+            totalDataAvg.append(meanData)
+        if onOrOff%2 == 0: #this means current is off
+            for i in range(indexBreaks[k], indexBreaks[k + 1]):
+                meanData = meanData + stitchedData[i][2]
+            #print(stitchedData[indexBreaks[k+1]-1][2])
+            for m in range(1,xnumEnd+1):
+                #print("subtracting: {}".format(stitchedData[indexBreaks[k+1]-m][2]))
+                meanData = meanData - stitchedData[indexBreaks[k+1]-m][2]
+                #print(meanData)
+            for m in range(0,xnumFront):
+                meanData = meanData - stitchedData[indexBreaks[k]+m][2]
+            # above lines subtract out first xnumFront and last xnumEnd points in measurement series
+                #print("subtracting: {}".format(stitchedData[indexBreaks[k]+m][2]))
+                #print(meanData)
+            avgdPts = (indexBreaks[k + 1] - indexBreaks[k] - xnumEnd - xnumFront)
+            #print(avgdPts)
+            meanData = meanData / avgdPts  # divide by number of elements for mean value
+            totalDataAvg.append(meanData)
+        onOrOff = onOrOff + 1
         if plotting == 2:
             print("Pulse: {:4}, Current: {:5.2}mA, Mean Intensity: {:8.6}, Averaged Points: {:2}".format(k, currBreaks[
                 k] * 1e3,meanData,avgdPts))
