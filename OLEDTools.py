@@ -22,12 +22,12 @@ def multipleQuenchPlot(JorV, fileList, cols, JorVsource):
         if JorV == "J":
             plt.semilogx(xs, ys, linestyle="", marker="o", color=cols[i])
             plt.xlabel('Drive Current (A)')
-            plt.xlim(.9e-6,2e-2)
+            plt.xlim(.9e-7,1e-2)
         if JorV == "V":
             plt.plot(xs, ys, linestyle="", marker="o", color=cols[i])
             plt.xlabel('Voltage (V)')
-            plt.xlim(0,23)
-        plt.ylim(0.75,1.01)
+            plt.xlim(0,20)
+        plt.ylim(0.7,1.01)
         plt.ylabel('Normalized PL')
     plt.show()
 
@@ -58,8 +58,8 @@ def quenchAnalyzePLwV(JorV, filename, plotting, outPutFile, JorVsource):
 
     totalDataAvg = []
     onOrOff = 0
-    xnumFront = 5
-    xnumEnd = 5
+    xnumFront = 1
+    xnumEnd = 1
     for k in range(len(indexBreaks) - 1):
         meanData = 0
         if onOrOff%2 == 1: #this means current is on
@@ -68,6 +68,8 @@ def quenchAnalyzePLwV(JorV, filename, plotting, outPutFile, JorVsource):
             meanData = meanData - stitchedData[indexBreaks[k]][2] - stitchedData[indexBreaks[k + 1] - 1][2]
             # above line subtracts out first and last points in measurement series
             avgdPts = (indexBreaks[k + 1] - indexBreaks[k] - 2)
+            if avgdPts == 0:
+                avgdPts = 1
             meanData = meanData / avgdPts  # divide by number of elements for mean value
             totalDataAvg.append(meanData)
         if onOrOff%2 == 0: #this means current is off
@@ -84,7 +86,9 @@ def quenchAnalyzePLwV(JorV, filename, plotting, outPutFile, JorVsource):
                 #print("subtracting: {}".format(stitchedData[indexBreaks[k]+m][2]))
                 #print(meanData)
             avgdPts = (indexBreaks[k + 1] - indexBreaks[k] - xnumEnd - xnumFront)
-            #print(avgdPts)
+            if avgdPts == 0:
+                avgdPts = 1
+            print(avgdPts)
             meanData = meanData / avgdPts  # divide by number of elements for mean value
             totalDataAvg.append(meanData)
         onOrOff = onOrOff + 1
@@ -97,9 +101,10 @@ def quenchAnalyzePLwV(JorV, filename, plotting, outPutFile, JorVsource):
     ratioCurr = []
     ratioVolt = []
     for i in range(1, len(totalData)):
-        ratio.append(totalData[i][2] / totalData[i - 1][2])
-        ratioCurr.append(totalData[i][0])
-        ratioVolt.append(totalData[i][1])
+        if (totalData[i-1][2]) != 0:
+            ratio.append(totalData[i][2] / totalData[i - 1][2])
+            ratioCurr.append(totalData[i][0])
+            ratioVolt.append(totalData[i][1])
     ratioList = []
     ratioListTemp = list(zip(ratioCurr, ratioVolt, ratio))
     for i in range(len(ratioListTemp)):
@@ -130,7 +135,7 @@ def quenchAnalyzePLwV(JorV, filename, plotting, outPutFile, JorVsource):
         xs = list(zip(*ratioList))[0]
         ys = list(zip(*ratioList))[1]
         zs = list(zip(*ratioList))[2]
-        data = list(zip(xs,ys))
+        data = list(zip(xs,ys,zs))
         with open(filename.strip(".csv")+"_Ratio.csv", 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             row1 = ["Drive Current (A)", "Voltage (V)", "PL Ratio"]
@@ -533,6 +538,13 @@ def makeTodayDir():
     print("Changed Directory to: {}".format(os.getcwd()))
     return
 
+def writeOOSpectrum(tupleList, fn):
+    with open(fn, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        row1 = ["Wavelength (nm)","Intensity"]
+        writer.writerow(row1)
+        for row in tupleList:
+            writer.writerow(row)
 
 # Outputs IV data to a .csv
 def writeMobility(fn, data):
@@ -562,3 +574,32 @@ def writeIVBDecay(fn, data):
         writer.writerow(row1)
         for row in data:
             writer.writerow(row)
+
+def formatTRPL(bin_wave,vpos,vscale,voff):
+    import numpy as np
+    # Condition 2-byte data
+    bin_wave2 = [0]*len(bin_wave)
+    for i in range(1,len(bin_wave)):
+        if i%2:
+            bin_wave2[i] = bin_wave2[i] + bin_wave[i]*256
+        if not(i%2):
+            bin_wave2[i-1] = bin_wave2[i-1] + bin_wave[i]
+    bin_wave3 = [v for i, v in enumerate(bin_wave2) if i%2==1]
+
+    # create scaled vectors
+    # horizontal (time)
+
+    # vertical (voltage)
+    unscaled_wave = np.array(bin_wave3, dtype='double') # data type conversion
+    scaled_wave = (unscaled_wave - vpos) * vscale + voff
+    return scaled_wave
+
+
+def npArrayWriteCsv(filename,xList,yList,header):
+    pyList = yList.tolist()
+    pyList = zip(xList,[str(x) for x in pyList])
+    with open(filename,'w',newline='') as outFile:
+        wr = csv.writer(outFile)
+        wr.writerow([header])
+        for item in pyList:
+            wr.writerow(item)
