@@ -65,7 +65,6 @@ def currDecay(sourceCurrent,maxTime):
     K34460A = rm.list_resources()[1]
     smu = rm.open_resource(B2901A)
     mm = rm.open_resource(K34460A)
-    smu.timeout = 5000000
     smu.write("*RST")
     print("SMU: {}".format(smu.query("*IDN?")))
     smu.write(":SOUR:FUNC:MODE CURR")
@@ -89,14 +88,13 @@ def currDecay(sourceCurrent,maxTime):
     tRun = datetime.datetime.now() - tbegin
     twait = 0
     ret = ""
-    threshold = -1 #.005e-6
 
     while (tRun.seconds<maxTime):
         voltList.append(smu.query(":MEAS:VOLT?").split('\n')[0])
         currList.append(smu.query(":MEAS:CURR?").split('\n')[0])
         brightTemp = mm.query(":MEAS:CURR?").split('\n')[0]
         brightList.append(brightTemp)
-        if float(brightTemp) < threshold:
+        if float(brightTemp) < .005e-6:
             print("No Output! Breaking Decay Loop...")
             ret = "fail"
             break
@@ -140,17 +138,11 @@ def biasVoltsTime(totalTime,bias):
 def findTurnOnVoltage(Vbegin, Vend, stepVolts, maxCurr, brThreshold):
     #Does Linear sweep until V_TurnOn, then returns linear data with V_TurnOn as last data point
     rm = visa.ResourceManager()
-    for i in rm.list_resources():
-        if "0x0957" in i:
-            B2901A_address = i
-    for i in rm.list_resources():
-        if "0x2A8D" in i:
-            MM_34460_address = i
+    B2901A_address = rm.list_resources()[0]
+    MM_34460_address = rm.list_resources()[1]
     smu = rm.open_resource(B2901A_address)
     mm = rm.open_resource(MM_34460_address)
     step = abs(round((Vend-Vbegin) / stepVolts)) + 1
-    #print(B2901A_address)
-    #print(MM_34460_address)
     print("step: {}".format(step))
     print("StepVolts: {}".format(stepVolts))
     mm.timeout = 5000000
@@ -170,7 +162,6 @@ def findTurnOnVoltage(Vbegin, Vend, stepVolts, maxCurr, brThreshold):
     mm.write(':CONF:CURR:DC')
     mm.write(':CURR:DC:NPLC {}'.format(nplcTime))
     mm.write(':TRIG:COUN {}'.format(step))
-    # look for trigger before measurement
     mm.write(':TRIG:SOUR EXT')
     mm.write(':TRIG:DEL .01')
     mm.write(':INIT')
@@ -185,14 +176,12 @@ def findTurnOnVoltage(Vbegin, Vend, stepVolts, maxCurr, brThreshold):
     smu.write(":TRIG:DEL .01")
     smu.write(':OUTP ON')
     smu.write(":SOUR:TOUT:STAT ON")
-    # send trigger out on EXT3
     smu.write(":SOUR:TOUT:SIGN EXT3")
     smu.write(":SOUR:DIG:EXT3:FUNC DIO")
     smu.write(":SOUR:DIG:EXT3:TOUT:EDGE:POS BEF")
     smu.write(':INIT (@1)')
 
     brightCurr = mm.query(":FETC?").split(',')
-    #print(brightCurr)
     measCurr = smu.query(':FETC:ARR:CURR? (@1)').split(',')
     sourceVolts = smu.query(':FETC:ARR:VOLT? (@1)').split(',')
 
