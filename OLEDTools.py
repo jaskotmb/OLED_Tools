@@ -54,15 +54,24 @@ def getSpectrum(fileName):
 
 def iDevice():
     rm = visa.ResourceManager()
-    B2901A = rm.list_resources()[0]
+    for i in rm.list_resources():
+        if "0x0957" in i:
+            B2901A_address = i
+    for i in rm.list_resources():
+        if "0x2A8D" in i:
+            MM_34460_address = i
     smu = rm.open_resource(B2901A)
     smu.write("*RST")
     print("SMU: {}".format(smu.query("*IDN?")))
 
 def currDecay(sourceCurrent,maxTime):
     rm = visa.ResourceManager()
-    B2901A = rm.list_resources()[0]
-    K34460A = rm.list_resources()[1]
+    for i in rm.list_resources():
+        if "0x0957" in i:
+            B2901A_address = i
+    for i in rm.list_resources():
+        if "0x2A8D" in i:
+            MM_34460_address = i
     smu = rm.open_resource(B2901A)
     mm = rm.open_resource(K34460A)
     smu.write("*RST")
@@ -111,8 +120,9 @@ def currDecay(sourceCurrent,maxTime):
 
 def biasVoltsTime(totalTime,bias):
     rm = visa.ResourceManager()
-    B2901A_address = rm.list_resources()[0]
-    MM_34460_address = rm.list_resources()[1]
+    for i in rm.list_resources():
+        if "0x0957" in i:
+            B2901A_address = i
     smu = rm.open_resource(B2901A_address)
     smu.timeout = 5000000
     print("Reverse Biasing at {}V for {}sec".format(bias,totalTime))
@@ -205,8 +215,12 @@ def findTurnOnVoltage(Vbegin, Vend, stepVolts, maxCurr, brThreshold):
 
 def IVBSweep(step, maxCurr, voltList):
     rm = visa.ResourceManager()
-    B2901A_address = rm.list_resources()[0]
-    MM_34460_address = rm.list_resources()[1]
+    for i in rm.list_resources():
+        if "0x0957" in i:
+            B2901A_address = i
+    for i in rm.list_resources():
+        if "0x2A8D" in i:
+            MM_34460_address = i
     smu = rm.open_resource(B2901A_address)
     mm = rm.open_resource(MM_34460_address)
     mm.timeout = 50000000
@@ -275,8 +289,12 @@ def IVBSweep(step, maxCurr, voltList):
 
 def IVBSweepCurr(step, maxVolts, currList):
     rm = visa.ResourceManager()
-    B2901A_address = rm.list_resources()[0]
-    MM_34460_address = rm.list_resources()[1]
+    for i in rm.list_resources():
+        if "0x0957" in i:
+            B2901A_address = i
+    for i in rm.list_resources():
+        if "0x2A8D" in i:
+            MM_34460_address = i
     smu = rm.open_resource(B2901A_address)
     mm = rm.open_resource(MM_34460_address)
     mm.timeout = 5000000
@@ -337,7 +355,9 @@ def IVBSweepCurr(step, maxVolts, currList):
 # Executes a linear IV sweep and returns IV output
 def LinSweepSMU(Vbegin, Vend, samplePoints, stepT, maxCurr):
     rm = visa.ResourceManager()
-    B2901A_address = rm.list_resources()[0]
+    for i in rm.list_resources():
+        if "0x0957" in i:
+            B2901A_address = i
     smu = rm.open_resource(B2901A_address)
     totalTime = (stepT+.005)*samplePoints
     smu.write('*RST')
@@ -369,8 +389,12 @@ def LinSweepSMU(Vbegin, Vend, samplePoints, stepT, maxCurr):
 # Closes connection to SMU:
 def SMUclose():
     rm = visa.ResourceManager()
-    B2901A_address = rm.list_resources()[0]
-    MM_34460_address = rm.list_resources()[1]
+    for i in rm.list_resources():
+        if "0x0957" in i:
+            B2901A_address = i
+    for i in rm.list_resources():
+        if "0x2A8D" in i:
+            MM_34460_address = i
     mm = rm.open_resource(MM_34460_address)
     smu = rm.open_resource(B2901A_address)
     smu.write(':OUTP OFF')
