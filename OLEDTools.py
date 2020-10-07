@@ -138,8 +138,12 @@ def biasVoltsTime(totalTime,bias):
 def findTurnOnVoltage(Vbegin, Vend, stepVolts, maxCurr, brThreshold):
     #Does Linear sweep until V_TurnOn, then returns linear data with V_TurnOn as last data point
     rm = visa.ResourceManager()
-    B2901A_address = rm.list_resources()[0]
-    MM_34460_address = rm.list_resources()[1]
+    for i in rm.list_resources():
+        if "0x0957" in i:
+            B2901A_address = i
+    for i in rm.list_resources():
+        if "0x2A8D" in i:
+            MM_34460_address = i
     smu = rm.open_resource(B2901A_address)
     mm = rm.open_resource(MM_34460_address)
     step = abs(round((Vend-Vbegin) / stepVolts)) + 1
